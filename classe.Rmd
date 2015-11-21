@@ -122,13 +122,17 @@ model <- randomForest(classe ~ ., data = dat_train,importance=TRUE, ntree=100)
 #check for accuracy
 res <- predict(model, dat_test)
 acc <- dat_test$classe == res
-percent(length(grep(TRUE, acc))/nrow(dat_test))
+ac <- length(grep(TRUE, acc))/nrow(dat_test)
+percent(1-ac)
+
+#Error rate
+percent(1-ac)
 ```
 
 
 
 ##**Conclusion**
-The machine learning model has been built for the given datasets and cross-validation is done by splitting the training dataset in the ratio of 75:25. Our model shows `r percent(length(grep(TRUE, acc))/nrow(dat_test))` accuracy. This model can be applied on the testing dataset.
+The machine learning model has been built for the given datasets and cross-validation is done by splitting the training dataset in the ratio of 75:25. Our model shows `r percent(ac)` accuracy. The out of sample error rate is `r percent(1-ac)` which is very less and it can be expected that model is close to perfect. Therefore, the model is ready, and can be applied on the testing dataset.
 
 ##**Reference for dataset**
 _Groupware, Human activity recognition_
