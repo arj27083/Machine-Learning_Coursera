@@ -105,7 +105,7 @@ diag(corr) <- 0
 which(corr>0.8, arr.ind = T)
 ```
 
-Based on the output above, it can be concluded that the variables `r #roll_belt` and `r #yaw_belt` are correlated. Since,  `r #roll_belt` is more influential in the model, let's just remove yaw_belt instead of doing a PCA (Principal Component Analysis).
+Based on the output above, it can be concluded that the variables  *roll_belt* and *yaw_belt* are correlated. Since,  *roll_belt* is more influential in the model, let's just remove *yaw_belt* instead of doing a PCA (Principal Component Analysis).
 
 ```{r , message=F, warning=F}
 #Removing yaw_belt variable
@@ -123,7 +123,7 @@ model <- randomForest(classe ~ ., data = dat_train,importance=TRUE, ntree=100)
 res <- predict(model, dat_test)
 acc <- dat_test$classe == res
 ac <- length(grep(TRUE, acc))/nrow(dat_test)
-percent(1-ac)
+percent(ac)
 
 #Error rate
 percent(1-ac)
