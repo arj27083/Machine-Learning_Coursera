@@ -1,0 +1,139 @@
+---
+title: "Machine Learning Algorithm to predict classe variable"
+author: "Arjun KV"
+date: "09 July 2016"
+output: html_document
+---
+
+##**Executive Summary** 
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, the goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. Training and Testing datasets are provided. Once the model is built, it is used to predict the manner in which the exercise was done for 20 readings test dataset.
+
+##**Steps involved in building a suitable model**
+
+The datasets, viz. training and testing are downloaded, and read from the current directory of R, and the necessary packages that would be useful are loaded.
+
+```{r , message=F, warning=F}
+library(caret)
+library(kernlab)
+library(caTools)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(randomForest)
+library(dplyr)
+library(plyr)
+library(scales)
+
+#Downloading datasets
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",destfile= "pml-training.csv")
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv",destfile= "pml-testing.csv")
+
+#Reading the Training and Testing data
+dat <- read.csv("pml-training.csv")
+test <- read.csv("pml-testing.csv")
+
+#Dimension of the data
+dim(dat)
+
+#Variable names
+names(dat)
+
+#Different classification of classe variable
+table(dat$classe)
+```
+
+It is evident from the above output that there are 160 variables and 19622 readings. There are six types of dependent variable which is to be predicted using the model. The number of predictor variables (159) is too high. Our intention is to use a maximum of 10 variables to predict the variable "classe" which indicates the manner of exercise done. Hence, let's do some preprocessing to make the datasets ready for model to be built.
+
+1. The first few variables are just informative. It will be removed.
+2. There could many variables with missing or "NA" values. These variables don't help much either.
+3. Lastly, there are variables which are complete with readings, but hardly differ, i.e., the variance of those variables are close to zero which are also least preferred predictor variables meant to be removed.
+
+
+```{r , message=F, warning=F}
+#Preprocessing of data
+dat <- dat[,-c(1:6)] #Removing informative variables
+test <- test[,-c(1:6)]
+
+#Removing variables with NA values
+na_var  <- apply(!is.na(dat), 2, sum)
+na_var <- na_var == 19622
+dat <- dat[, na_var]
+test  <- test[, na_var]
+
+#Removing Zero variates
+zv_col <- nearZeroVar(dat)
+dat <- dat[,-zv_col]
+test <- test[,-zv_col]
+
+#Dimension after preprocessing
+dim(dat)
+```
+
+After preprocessing, we are left with 53 predictors. Since, all of them are complete, we can use all of them to build a model since we don't which of those play a significant role in classification of "classe" variable. Before we proceed to build a model, let's split the training datasets into train and test for cross validation.
+
+```{r , message=F, warning=F}
+#Splitting Training data for cross validation
+sample <- sample.split(dat$classe, SplitRatio = 0.75)
+dat_train <- subset(dat, sample == TRUE)
+dat_test <- subset(dat, sample == FALSE)
+```
+
+We used a split ratio 75:25 for cross validation. Let's use random forest to build a function as decision trees prove to more accurate in such cases.
+
+```{r , message=F, warning=F, out.width = '600px', out.height = '480px'}
+#Model building
+model <- randomForest(classe ~ ., data = dat_train, importance=TRUE, ntree=100)
+varImpPlot(model)
+```
+
+The model is built, but 54 variables makes the model complex and time consuming to be built. Therefore, we identified the top 10 variables from the above "MeanDecreaseAccuracy" plot which shows variables that influences the accuracy of the model.
+
+```{r , message=F, warning=F}
+#Identifying top 10 variables along with dependent variable and removing the rest
+var_imp <- c("classe","yaw_belt","roll_belt","num_window","pitch_belt",
+             "magnet_dumbbell_z","magnet_dumbbell_y","pitch_forearm",
+             "accel_dumbbell_y","roll_arm","roll_forearm")
+dat_train <- dat_train[,var_imp]
+dat_test <- dat_test[,var_imp]
+```
+Let's check for possible multicollinearity in these 10 variables.
+
+```{r , message=F, warning=F}
+#Identifying variables that are related to each other
+corr <- cor(dat_train[,-1])
+diag(corr) <- 0
+which(corr>0.8, arr.ind = T)
+```
+
+Based on the output above, it can be concluded that the variables  *roll_belt* and *yaw_belt* are correlated. Since,  *roll_belt* is more influential in the model, let's just remove *yaw_belt* instead of doing a PCA (Principal Component Analysis).
+
+```{r , message=F, warning=F}
+#Removing yaw_belt variable
+dat_train <- dat_train[,-2]
+dat_test <-  dat_test[,-2]
+```
+
+Now, the variables are identified, let's rebuild the model and do a cross-validation to know the accuracy of the model.
+
+```{r , message=F, warning=F}
+#Refined version of model
+model <- randomForest(classe ~ ., data = dat_train,importance=TRUE, ntree=100)
+
+#check for accuracy
+res <- predict(model, dat_test)
+acc <- dat_test$classe == res
+ac <- length(grep(TRUE, acc))/nrow(dat_test)
+percent(ac)
+
+#Error rate
+percent(1-ac)
+```
+
+
+
+##**Conclusion**
+The machine learning model has been built for the given datasets and cross-validation is done by splitting the training dataset in the ratio of 75:25. Our model shows `r percent(ac)` accuracy. The out of sample error rate is `r percent(1-ac)` which is very less and it can be expected that model is close to perfect. Therefore, the model is ready, and can be applied on the testing dataset.
+
+##**Reference for dataset**
+_Groupware, Human activity recognition_
+http://groupware.les.inf.puc-rio.br/har
